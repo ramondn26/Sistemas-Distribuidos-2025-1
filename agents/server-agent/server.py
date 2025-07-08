@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-# ml_assistant.py
+# server.py
 
 import os
 import sys
 import json
+import pathlib
 from typing import Literal, Dict, List
 
 from flask import Flask, request, jsonify
@@ -20,6 +21,23 @@ if not api_key:
     print("Erro: defina OPENAI_API_KEY no ambiente.", file=sys.stderr)
     sys.exit(1)
 client = OpenAI(api_key=api_key)
+
+# ─── CARREGA FAQ DA LOJA ──────────────────────────────────────────────────────
+FAQ_PATH = pathlib.Path(__file__).parent / "faq.json"
+try:
+    with open(FAQ_PATH, encoding="utf-8") as f:
+        faq_data = json.load(f)
+except FileNotFoundError:
+    print(f"Aviso: {FAQ_PATH} não encontrado. Continuando sem FAQ.", file=sys.stderr)
+    faq_data = {}
+
+# monta um texto único com todas as entradas do FAQ
+if faq_data:
+    faq_text = "Conhecimentos da loja (FAQ):\n" + "\n".join(
+        f"- **{pergunta}**: {resposta}" for pergunta, resposta in faq_data.items()
+    )
+else:
+    faq_text = ""
 
 # ─── ARMAZENAMENTO DE HISTÓRICO (em memória) ─────────────────────────────────
 # Map cliente ID to a list of chat messages (role/content)
@@ -50,16 +68,16 @@ oferecendo informações e suporte sobre produtos que devem ser baseados no cat�
 Amazon Brasil, incluindo nome, preço, descrição e avaliações, mas sem mencionar a Amazon em nenhum momento.
 Os produtos devem ser apresentados como se fossem vendidos diretamente pela sua loja.
 Além disso, você receberá dois parâmetros a cada requisição: um campo sentimento,
-com valor “POSITIVO”, “NEGATIVO” ou "NEUTRO", e um campo precisao (número entre 0.0 e 1.0)
+com valor “POSITIVO”, “NEGATIVO” ou “NEUTRO”, e um campo precisao (número entre 0.0 e 1.0)
 indicando a confiança na análise de sentimento. Se o sentimento for NEGATIVO,
 sua resposta deve começar com empatia, demonstrando preocupação com o cliente e oferecendo
 soluções (como reembolso, troca ou suporte). Se o sentimento for POSITIVO, você deve responder
 com entusiasmo, agradecer e sugerir produtos relacionados. Se o sentimento for NEUTRO, responda
-de forma equilibrada, oferecendo opções de produtos e perguntando se precisa de mais auxilio.
+de forma equilibrada, oferecendo opções de produtos e perguntando se precisa de mais auxílio.
 A precisão deve ser interpretada da seguinte forma:
 - Se for ≥ 0.7, aja com segurança.
 - Entre 0.30 e 0.69, aja com cautela e peça confirmação (“Entendi corretamente que…?”).
-- Se for < 0.30, você deve se recusar a responder e pedir mais contexto ao usuário.
+- Se for < 0.30, você deve se recusar a responder e pedir mais contexto ao usuário ou sugerir que fale com um atendente humano.
 Em todos os casos, sua linguagem deve ser cordial, clara e alinhada com as boas práticas de atendimento
 brasileiro, oferecendo sempre opções de contato humano quando necessário, garantindo o direito de
 arrependimento em até 7 dias, respeitando a privacidade dos dados e nunca prometendo nada que não possa ser cumprido.
@@ -67,11 +85,15 @@ arrependimento em até 7 dias, respeitando a privacidade dos dados e nunca prome
 
 # ─── FUNÇÃO PARA MONTAR HISTÓRICO DE MENSAGENS ────────────────────────────────
 def build_message_history(id_cliente: str, current_payload: Dict) -> List[Dict[str, str]]:
-    # inicia o histórico se não existir
+    # inicia o histórico se não existir, incluindo FAQ como segundo contexto
     if id_cliente not in history_store:
         history_store[id_cliente] = [
             {"role": "system", "content": SYSTEM_PROMPT}
         ]
+        if faq_text:
+            history_store[id_cliente].append(
+                {"role": "system", "content": faq_text}
+            )
 
     # adiciona a mensagem atual do usuário
     history_store[id_cliente].append(
@@ -89,7 +111,7 @@ def get_advice(req: AssistRequest) -> str:
         "idiomaPreferido": req.idiomaPreferido
     }
 
-    # monta o histórico com todas as mensagens
+    # monta o histórico completo
     messages = build_message_history(req.idCliente, user_payload)
 
     # chama a API passando todo o histórico
