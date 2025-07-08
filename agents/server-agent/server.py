@@ -4,16 +4,15 @@
 import os
 import sys
 import json
-from typing import Literal
+from typing import Literal, Dict, List
 
 from flask import Flask, request, jsonify
 from pydantic import BaseModel, ValidationError, field_validator
 from openai import OpenAI, OpenAIError
-
 from dotenv import load_dotenv
 
 # carrega .env automaticamente
-load_dotenv() 
+load_dotenv()
 
 # ─── CONFIGURAÇÃO DA OPENAI ────────────────────────────────────────────────────
 api_key = os.getenv("OPENAI_API_KEY")
@@ -22,9 +21,13 @@ if not api_key:
     sys.exit(1)
 client = OpenAI(api_key=api_key)
 
+# ─── ARMAZENAMENTO DE HISTÓRICO (em memória) ─────────────────────────────────
+# Map cliente ID to a list of chat messages (role/content)
+history_store: Dict[str, List[Dict[str, str]]] = {}
+
 # ─── MODELO DE VALIDAÇÃO DA REQUISIÇÃO ─────────────────────────────────────────
 class AssistRequest(BaseModel):
-    idCliente: str | None = None
+    idCliente: str
     mensagemUsuario: str
     sentimento: Literal["POSITIVO", "NEGATIVO"]
     confianca: float
@@ -60,40 +63,58 @@ brasileiro, oferecendo sempre opções de contato humano quando necessário, gar
 arrependimento em até 7 dias, respeitando a privacidade dos dados e nunca prometendo nada que não possa ser cumprido.
 """.strip()
 
+# ─── FUNÇÃO PARA MONTAR HISTÓRICO DE MENSAGENS ────────────────────────────────
+def build_message_history(id_cliente: str, current_payload: Dict) -> List[Dict[str, str]]:
+    # inicia o histórico se não existir
+    if id_cliente not in history_store:
+        history_store[id_cliente] = [
+            {"role": "system", "content": SYSTEM_PROMPT}
+        ]
+
+    # adiciona a mensagem atual do usuário
+    history_store[id_cliente].append(
+        {"role": "user", "content": json.dumps(current_payload, ensure_ascii=False)}
+    )
+    return history_store[id_cliente]
+
 # ─── FUNÇÃO DE CHAMADA AO MODELO ────────────────────────────────────────────────
 def get_advice(req: AssistRequest) -> str:
-    # monta o conteúdo do usuário como JSON para a IA
-    user_payload = json.dumps({
+    user_payload = {
         "idCliente": req.idCliente,
         "mensagemUsuario": req.mensagemUsuario,
         "sentimento": req.sentimento,
         "confianca": req.confianca,
         "idiomaPreferido": req.idiomaPreferido
-    }, ensure_ascii=False)
+    }
 
+    # monta o histórico com todas as mensagens
+    messages = build_message_history(req.idCliente, user_payload)
+
+    # chama a API passando todo o histórico
     resp = client.chat.completions.create(
-        model="gpt-4o",      # or "gpt-4", "gpt-4-32k", "gpt-4o", etc.
+        model="gpt-4o",
         temperature=0.7,
-        max_tokens=250,
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user",   "content": user_payload},
-        ],
+        max_tokens=500,
+        messages=messages,
     )
-    return resp.choices[0].message.content.strip()
+    assistant_reply = resp.choices[0].message.content.strip()
+
+    # armazena a resposta da assistente
+    history_store[req.idCliente].append(
+        {"role": "assistant", "content": assistant_reply}
+    )
+    return assistant_reply
 
 # ─── CONFIGURAÇÃO DO FLASK ────────────────────────────────────────────────────
 app = Flask(__name__)
 
 @app.route("/assistant", methods=["POST"])
 def assistant():
-    # valida payload
     try:
         payload = AssistRequest(**request.get_json(force=True))
     except (TypeError, ValidationError) as e:
         return jsonify({"error": "Payload inválido", "details": getattr(e, "errors", str(e))}), 400
 
-    # chama a IA e retorna a resposta (ela mesma decidirá recusar se precisao < 0.60)
     try:
         answer = get_advice(payload)
         return jsonify({"assistant": answer})
@@ -101,5 +122,5 @@ def assistant():
         return jsonify({"error": "Erro ao chamar OpenAI", "details": str(e)}), 502
 
 if __name__ == "__main__":
-    port = int(os.getenv("PORT", 8000))
+    port = int(os.getenv("PORT", 8080))
     app.run(host="0.0.0.0", port=port)
