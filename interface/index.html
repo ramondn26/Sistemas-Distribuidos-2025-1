@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Atendimento Automatizado</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="container">
+      <h1>Atendimento Automatizado</h1>
+      <form id="chat-form" class="card">
+        <div class="form-group">
+          <label for="idCliente">ID do Cliente:</label>
+          <input
+            type="text"
+            id="idCliente"
+            name="idCliente"
+            required
+            class="form-control"
+            placeholder="Digite seu ID..."
+          />
+        </div>
+        <div class="form-group">
+          <label for="mensagemUsuario">Mensagem do Usuário:</label>
+          <textarea
+            id="mensagemUsuario"
+            name="mensagemUsuario"
+            rows="4"
+            required
+            class="form-control"
+            placeholder="Escreva sua mensagem..."
+          ></textarea>
+        </div>
+        <button type="submit" class="btn-primary" id="btnEnviar">
+          Enviar
+        </button>
+        <!-- Spinner de carregamento -->
+        <div id="loading" class="spinner" style="display: none;"></div>
+      </form>
+      <div id="assistant-response" class="response-card" style="display: none">
+        <strong>Resposta do Assistente:</strong>
+        <p id="assistant-text"></p>
+      </div>
+    </div>
+
+    <script>
+      const form = document.getElementById("chat-form");
+      const btn = document.getElementById("btnEnviar");
+      const spinner = document.getElementById("loading");
+      const respCard = document.getElementById("assistant-response");
+      const respText = document.getElementById("assistant-text");
+
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const idCliente = document.getElementById("idCliente").value.trim();
+        const mensagem = document.getElementById("mensagemUsuario").value.trim();
+        if (!idCliente || !mensagem) return;
+
+        // mostra spinner e desabilita o botão
+        spinner.style.display = "inline-block";
+        btn.disabled = true;
+
+        const payload = {
+          idCliente,
+          mensagemUsuario: mensagem,
+          idiomaPreferido: "pt-BR",
+        };
+
+        try {
+          const resp = await fetch("http://localhost:8090/integrated", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          const data = await resp.json();
+          if (!resp.ok) throw new Error(data.error || "Erro desconhecido");
+
+          respText.textContent = data.assistant;
+        } catch (err) {
+          respText.textContent = "Erro: " + err.message;
+        } finally {
+          // oculta spinner e habilita o botão
+          spinner.style.display = "none";
+          btn.disabled = false;
+          respCard.style.display = "block";
+        }
+      });
+    </script>
+  </body>
+</html>

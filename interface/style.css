@@ -1,0 +1,121 @@
+body {
+  font-family: 'Segoe UI', Arial, sans-serif;
+  background: #f4f6fb;
+  margin: 0;
+  padding: 0;
+}
+
+.container {
+  max-width: 430px;
+  margin: 3em auto 0 auto;
+  padding: 2em;
+  background: #fff;
+  border-radius: 18px;
+  box-shadow: 0 8px 32px 0 rgba(31,38,135,0.1);
+}
+
+h1 {
+  text-align: center;
+  color: #007bff;
+  margin-bottom: 1.6em;
+}
+
+.card {
+  background: #fafcff;
+  padding: 1.7em 1.3em 1.3em 1.3em;
+  border-radius: 12px;
+  box-shadow: 0 2px 12px 0 rgba(0,0,0,0.03);
+  margin-bottom: 1em;
+}
+
+.form-group {
+  margin-bottom: 1.1em;
+}
+
+label {
+  display: block;
+  margin-bottom: 0.5em;
+  color: #333d4b;
+  font-weight: 500;
+}
+
+.form-control {
+  width: 100%;
+  padding: 0.58em;
+  border: 1px solid #b2becd;
+  border-radius: 6px;
+  background: #f6faff;
+  font-size: 1em;
+  margin-bottom: 0.3em;
+  transition: border 0.2s;
+}
+
+.form-control:focus {
+  border-color: #007bff;
+  outline: none;
+  background: #fff;
+}
+
+.btn-primary {
+  width: 100%;
+  padding: 0.75em;
+  background: linear-gradient(90deg,#007bff 65%,#4191ff 100%);
+  color: #fff;
+  border: none;
+  border-radius: 7px;
+  font-size: 1.15em;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.2s;
+  box-shadow: 0 2px 8px 0 rgba(0,123,255,0.10);
+}
+
+.btn-primary:hover {
+  background: linear-gradient(90deg,#0056b3 65%,#2979ff 100%);
+}
+
+/* Estado desabilitado do botão */
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Spinner de carregamento */
+.spinner {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  margin-left: 12px;
+  vertical-align: middle;
+  border: 3px solid rgba(0, 123, 255, 0.2);
+  border-top: 3px solid #007bff;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.response-card {
+  margin-top: 1.5em;
+  padding: 1.2em 1em;
+  background: #e9f6ff;
+  border-radius: 10px;
+  box-shadow: 0 1px 7px 0 rgba(0,123,255,0.08);
+  color: #183656;
+  font-size: 1.05em;
+  font-style: italic;
+  min-height: 40px;
+  word-break: break-word;
+}
+
+@media (max-width: 600px) {
+  .container {
+    max-width: 97vw;
+    padding: 1em;
+  }
+  .card {
+    padding: 1em;
+  }
+}
