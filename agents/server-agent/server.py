@@ -72,7 +72,7 @@ def get_advice(req: AssistRequest) -> str:
     }, ensure_ascii=False)
 
     resp = client.chat.completions.create(
-        model="gpt-3.5-turbo",
+        model="gpt-4o",      # or "gpt-4", "gpt-4-32k", "gpt-4o", etc.
         temperature=0.7,
         max_tokens=250,
         messages=[
