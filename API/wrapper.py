@@ -6,19 +6,36 @@ import sys
 import json
 import requests
 from flask import Flask, request, jsonify
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, ValidationError, Field
 from flask_cors import CORS
+from dotenv import load_dotenv
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+import logging
+
+load_dotenv()  # pip install python-dotenv
+API_KEY = os.getenv("OPENAI_API_KEY")
 
 # Se quiser logar melhor, importe logging e configure.
 
 app = Flask(__name__)
-CORS(app)   
+CORS(app, origins=["http://localhost:8501"])  
 
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+
+limiter = Limiter(app=app, key_func=get_remote_address, default_limits=["10 per minute"])
+
+@app.before_request
+def check_api_key():
+    if request.endpoint == "integrated" and request.method == "POST":
+        if request.headers.get("x-api-key") != API_KEY:
+            return jsonify({"error": "API key inválida"}), 401
+        
 # modelo de entrada: só idCliente e mensagemUsuario
 class IntegratedInput(BaseModel):
-    idCliente: str
-    mensagemUsuario: str
-    idiomaPreferido: str = "pt-BR"
+    idCliente: str = Field(..., max_length=50, pattern=r"^[a-zA-Z0-9\-]+$")
+    mensagemUsuario: str = Field(..., min_length=1, max_length=500)
+    idiomaPreferido: str = Field("pt-BR", pattern=r"^[a-z]{2}\-[A-Z]{2}$")
 
 @app.route("/integrated", methods=["POST"])
 def integrated():
