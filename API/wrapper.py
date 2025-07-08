@@ -7,10 +7,12 @@ import json
 import requests
 from flask import Flask, request, jsonify
 from pydantic import BaseModel, ValidationError
+from flask_cors import CORS
 
 # Se quiser logar melhor, importe logging e configure.
 
 app = Flask(__name__)
+CORS(app)   
 
 # modelo de entrada: só idCliente e mensagemUsuario
 class IntegratedInput(BaseModel):
@@ -71,4 +73,4 @@ def integrated():
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8090))
-    app.run(host="0.0.0.0", port=port)
+    app.run(host="127.0.0.1", port=port)
